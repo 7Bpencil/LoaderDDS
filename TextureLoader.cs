@@ -25,7 +25,7 @@ namespace AssetsLoaders
 
             // first 4 bytes should be 'DDS '
             // 84-87 bytes should be 'DXTn'
-            // BC4U/BC4S/ATI2/BC55/R8G8_B8G8/G8R8_G8B8/UYVY-packed/YUY2-packed formats are unsupported
+            // only DXT1, DXT3, DXT5 formats are supported
             if (!(header[0] == 'D' && header[1] == 'D' && header[2] == 'S' && header[3] == ' ' && header[84] == 'D'))
             {
                 goto exit;
@@ -62,6 +62,7 @@ namespace AssetsLoaders
             GL.GenTextures(1, out textureID);
             GL.BindTexture(TextureTarget.Texture2D, textureID);
 
+            var mipMapCountReal = mipMapCount;
             unsafe
             {
                 fixed (byte* p = buffer)
@@ -73,7 +74,7 @@ namespace AssetsLoaders
                         // discard any odd mipmaps with 0x1, 0x2 resolutions
                         if (w == 0 || h == 0)
                         {
-                            mipMapCount--;
+                            mipMapCountReal--;
                             continue;
                         }
 
@@ -84,10 +85,11 @@ namespace AssetsLoaders
                 }
             }
 
-            GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureBaseLevel, 0);
-            GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMaxLevel, mipMapCount - 1);
+            var hasMipMaps = mipMapCountReal != 1;
+            var textureMinFilter = hasMipMaps ? TextureMinFilter.LinearMipmapLinear : TextureMinFilter.Linear;
+            if (hasMipMaps) GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMaxLevel, mipMapCountReal - 1);
+            GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMinFilter, (int) textureMinFilter);
             GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMagFilter, (int) TextureMagFilter.Linear);
-            GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMagFilter, (int) TextureMinFilter.LinearMipmapLinear);
 
             GL.BindTexture(TextureTarget.Texture2D, 0);
 
